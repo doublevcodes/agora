@@ -18,6 +18,11 @@ export function VerdictCard({ verdict }: Props) {
       <span className="verdict-eyebrow">Verdict</span>
       <h2 className="verdict-outcome">{verdict.outcome}</h2>
       <p className="verdict-reason">{verdict.reason}</p>
+      {verdict.source === "frontend_threshold" && (
+        <p className="verdict-note">
+          Escalated by frontend threshold rule.
+        </p>
+      )}
       {verdict.escalation_packet && (
         <details className="escalation-packet">
           <summary>Reviewer handoff packet</summary>
