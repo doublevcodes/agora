@@ -402,6 +402,12 @@ input {
   font-size: 14px;
 }
 
+.threshold-skip-banner {
+  background: rgba(243, 156, 18, 0.12);
+  border-color: rgba(243, 156, 18, 0.45);
+  color: #f5b146;
+}
+
 .debate-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -596,6 +602,12 @@ input {
   color: var(--text);
   font-size: 15px;
   line-height: 1.55;
+}
+
+.verdict-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
 }
 
 .verdict-approve {

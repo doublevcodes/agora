@@ -24,6 +24,7 @@ export type DebateStatus =
 export interface DebateState {
   status: DebateStatus;
   transaction: ParsedTransaction | null;
+  escalationThreshold: number | null;
   brief: SpecterBrief | null;
   messages: AgentStructuredMessage[];
   verdict: VerdictDecision | null;
@@ -37,6 +38,7 @@ export interface DebateState {
 const initialState: DebateState = {
   status: "idle",
   transaction: null,
+  escalationThreshold: null,
   brief: null,
   messages: [],
   verdict: null,
@@ -78,6 +80,27 @@ export function useDebateStream() {
           }
           if (payload.transaction) {
             next.transaction = payload.transaction as ParsedTransaction;
+            const txAmount = next.transaction.amount;
+            if (
+              next.escalationThreshold !== null &&
+              typeof txAmount === "number" &&
+              Number.isFinite(txAmount) &&
+              txAmount > next.escalationThreshold
+            ) {
+              next.verdict = {
+                outcome: "ESCALATE TO HUMAN",
+                reason: `Amount ${txAmount.toFixed(2)} exceeds configured threshold ${next.escalationThreshold.toFixed(2)}.`,
+                source: "frontend_threshold",
+              };
+              next.statusMessages = [
+                ...next.statusMessages,
+                "Escalated immediately by configured threshold; debate skipped.",
+              ];
+              next.status = "complete";
+              abortRef.current?.abort();
+              abortRef.current = null;
+              return next;
+            }
           }
           if (typeof payload.risk_level === "string") {
             next.riskLevel = payload.risk_level;
@@ -101,6 +124,9 @@ export function useDebateStream() {
           };
         }
         case "agent_message": {
+          if (prev.verdict?.source === "frontend_threshold") {
+            return prev;
+          }
           const payload = env.payload as {
             message: AgentStructuredMessage;
           };
@@ -111,13 +137,22 @@ export function useDebateStream() {
           };
         }
         case "round_state": {
+          if (prev.verdict?.source === "frontend_threshold") {
+            return prev;
+          }
           return prev;
         }
         case "verdict": {
           const payload = env.payload as { verdict: VerdictDecision };
+          if (prev.verdict?.source === "frontend_threshold") {
+            return {
+              ...prev,
+              status: "complete",
+            };
+          }
           return {
             ...prev,
-            verdict: payload.verdict,
+            verdict: { ...payload.verdict, source: payload.verdict.source ?? "backend" },
             status: "streaming",
           };
         }
@@ -164,12 +199,22 @@ export function useDebateStream() {
     async (
       rawTransaction: string,
       maxRounds = 6,
-      escalationEmail?: string
+      escalationEmail?: string,
+      escalationThreshold?: number
     ) => {
       reset();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setState({ ...initialState, status: "starting" });
+      setState({
+        ...initialState,
+        status: "starting",
+        escalationThreshold:
+          typeof escalationThreshold === "number" &&
+          Number.isFinite(escalationThreshold) &&
+          escalationThreshold > 0
+            ? escalationThreshold
+            : null,
+      });
 
       try {
         const body: Record<string, unknown> = {

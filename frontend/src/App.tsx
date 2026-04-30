@@ -11,6 +11,7 @@ export function App() {
   const { state, startDebate, reset } = useDebateStream();
 
   const isBusy = state.status === "starting" || state.status === "streaming";
+  const skippedByThreshold = state.verdict?.source === "frontend_threshold";
 
   return (
     <div className="app-shell">
@@ -25,7 +26,9 @@ export function App() {
 
       <TransactionInput
         disabled={isBusy}
-        onSubmit={(raw, escalationEmail) => startDebate(raw, 6, escalationEmail)}
+        onSubmit={(raw, escalationEmail, escalationThreshold) =>
+          startDebate(raw, 6, escalationEmail, escalationThreshold)
+        }
         onReset={reset}
       />
 
@@ -51,6 +54,11 @@ export function App() {
       />
 
       {state.error && <div className="error-banner">Error: {state.error}</div>}
+      {skippedByThreshold && (
+        <div className="error-banner threshold-skip-banner">
+          Debate skipped: invoice amount exceeds configured escalation threshold.
+        </div>
+      )}
 
       <main className="debate-grid">
         <DebateColumn

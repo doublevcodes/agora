@@ -49,6 +49,7 @@ export interface VerdictDecision {
   outcome: VerdictOutcome;
   reason: string;
   escalation_packet?: Record<string, unknown> | null;
+  source?: "backend" | "frontend_threshold";
 }
 
 export interface SseEnvelope<T = Record<string, unknown>> {

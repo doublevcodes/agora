@@ -23,7 +23,11 @@ const DEMOS: Array<{ key: string; label: string; value: string }> = [
 
 interface Props {
   disabled?: boolean;
-  onSubmit: (raw: string, escalationEmail?: string) => void;
+  onSubmit: (
+    raw: string,
+    escalationEmail?: string,
+    escalationThreshold?: number
+  ) => void;
   onReset: () => void;
 }
 
@@ -32,19 +36,30 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
   const [escalationEmail, setEscalationEmail] = useState(
     (import.meta.env.VITE_ESCALATION_EMAIL as string | undefined) ?? ""
   );
+  const [escalationThreshold, setEscalationThreshold] = useState("");
   const trimmedEmail = escalationEmail.trim();
+  const trimmedThreshold = escalationThreshold.trim();
   const emailIsValid =
     trimmedEmail.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const parsedThreshold =
+    trimmedThreshold.length > 0 ? Number(trimmedThreshold) : null;
+  const thresholdIsValid =
+    parsedThreshold === null ||
+    (Number.isFinite(parsedThreshold) && parsedThreshold > 0);
   const emailError =
     trimmedEmail.length > 0 && !emailIsValid
       ? "Enter a valid email address (e.g. ops@example.com)."
       : null;
+  const thresholdError =
+    trimmedThreshold.length > 0 && !thresholdIsValid
+      ? "Enter a positive number (e.g. 10000)."
+      : null;
 
   const handleSubmit = () => {
     const trimmed = value.trim();
-    if (!trimmed || !emailIsValid) return;
+    if (!trimmed || !emailIsValid || !thresholdIsValid) return;
     const targetEmail = trimmedEmail;
-    onSubmit(trimmed, targetEmail || undefined);
+    onSubmit(trimmed, targetEmail || undefined, parsedThreshold ?? undefined);
   };
 
   return (
@@ -77,6 +92,23 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
         />
         {emailError && <p className="input-email-error">{emailError}</p>}
       </div>
+      <div className="input-email-row">
+        <label className="input-email-label" htmlFor="escalation-threshold">
+          Payment escalation threshold
+        </label>
+        <input
+          id="escalation-threshold"
+          className="input-email"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="10000"
+          value={escalationThreshold}
+          onChange={(e) => setEscalationThreshold(e.target.value)}
+          disabled={disabled}
+        />
+        {thresholdError && <p className="input-email-error">{thresholdError}</p>}
+      </div>
       <div className="input-actions">
         <div className="demo-group">
           {DEMOS.map((d) => (
@@ -98,6 +130,7 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
             onClick={() => {
               setValue("");
               setEscalationEmail("");
+              setEscalationThreshold("");
               onReset();
             }}
             disabled={disabled}
@@ -108,7 +141,9 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
             type="button"
             className="submit-btn"
             onClick={handleSubmit}
-            disabled={disabled || !value.trim() || !emailIsValid}
+            disabled={
+              disabled || !value.trim() || !emailIsValid || !thresholdIsValid
+            }
           >
             Run Debate
           </button>
