@@ -530,6 +530,25 @@ input {
   line-height: 1.55;
 }
 
+.typing-caret {
+  display: inline-block;
+  width: 0.6ch;
+  margin-left: 1px;
+  border-right: 2px solid currentColor;
+  animation: caret-blink 0.9s step-end infinite;
+  vertical-align: -1px;
+}
+
+@keyframes caret-blink {
+  from,
+  to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: currentColor;
+  }
+}
+
 .risk-tag-row {
   display: flex;
   flex-wrap: wrap;
