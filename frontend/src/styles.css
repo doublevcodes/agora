@@ -225,18 +225,22 @@ input {
 }
 
 .specter-card {
-  background: var(--bg-elev);
+  background:
+    radial-gradient(circle at top right, rgba(245, 166, 35, 0.1), transparent 45%),
+    var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-radius: 16px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  box-shadow: var(--shadow);
 }
 
 .specter-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -248,11 +252,24 @@ input {
   color: var(--text-dim);
 }
 
+.specter-title {
+  margin: 6px 0 0;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+}
+
+.specter-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .specter-status {
   font-size: 12px;
-  padding: 3px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
 }
 .specter-status-ok {
   border-color: rgba(46, 204, 113, 0.4);
@@ -265,7 +282,7 @@ input {
 
 .risk-badge {
   font-size: 12px;
-  padding: 3px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
@@ -309,6 +326,41 @@ input {
 .tx-value {
   font-size: 14px;
   color: var(--text);
+  font-weight: 600;
+}
+
+.specter-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.specter-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.specter-metric {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.specter-metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.specter-metric-value {
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .specter-summary p {
@@ -316,19 +368,27 @@ input {
   color: var(--text-dim);
   line-height: 1.55;
   font-size: 14px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.specter-note {
+  font-size: 13px;
 }
 
 .redflag-row {
-  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 .redflag-chip {
   font-size: 11px;
-  padding: 3px 8px;
+  font-weight: 600;
+  padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(231, 76, 60, 0.15);
+  background: rgba(231, 76, 60, 0.2);
   color: #f0746a;
   border: 1px solid rgba(231, 76, 60, 0.3);
 }

@@ -23,7 +23,10 @@ HERMES_SYSTEM = (
     "in real data. For each turn, make your reasoning explicit: (1) claim, "
     "(2) strongest evidence, (3) rebuttal to Nemesis, (4) unresolved risk check. "
     "Avoid generic policy language; tie every major point to transaction, "
-    "Specter, or opponent statements."
+    "Specter, or opponent statements. Critically, each new turn MUST introduce a "
+    "NEW concrete point or evidence not raised in your previous turns — do not "
+    "repeat or rephrase prior arguments. If you have nothing materially new to "
+    "add, concede that point and pivot to a different supporting angle."
 )
 
 NEMESIS_SYSTEM = (
@@ -39,7 +42,11 @@ NEMESIS_SYSTEM = (
     "make your reasoning explicit: (1) claim, (2) strongest evidence, (3) "
     "rebuttal to Hermes, (4) unresolved risk check. Avoid generic policy "
     "language; tie every major point to transaction, Specter, or opponent "
-    "statements."
+    "statements. CRITICAL: each new turn MUST raise a NEW specific risk or "
+    "evidence gap not in your previous turns — do not repeat the same concern. "
+    "If you cannot identify a new specific risk, concede the point and lower "
+    "your confidence rather than rephrasing. Only invoke red flags backed by "
+    "Specter facts, not speculation."
 )
 
 VERDICT_SYSTEM = (
@@ -47,12 +54,17 @@ VERDICT_SYSTEM = (
     "between Hermes (payment advocate) and Nemesis (payment prosecutor), along "
     "with a Specter intelligence brief on the vendor. Based on the quality of "
     "their arguments, the transaction details, and the Specter data, deliver a "
-    "verdict of APPROVE, REJECT, or ESCALATE TO HUMAN. If evidence remains "
-    "materially conflicting or unresolved after debate, prefer ESCALATE TO HUMAN "
-    "rather than APPROVE. Internally arbitrate by identifying the strongest "
-    "Hermes point, strongest Nemesis point, and unresolved critical uncertainty "
-    "before deciding. Follow with exactly one sentence explaining your decision. "
-    "Be impartial."
+    "verdict of APPROVE, REJECT, or ESCALATE TO HUMAN. Weigh evidence quality, "
+    "not the volume or persistence of disagreement. Disagreement alone is not a "
+    "reason to escalate; only escalate when there is a MATERIAL unresolved fact "
+    "(e.g., unverifiable vendor, missing documentation, unexplained anomaly) "
+    "that could change the decision. If Hermes presents concrete evidence and "
+    "Nemesis only raises generic skepticism without specific risks tied to this "
+    "transaction, lean APPROVE. If Nemesis identifies a clear, specific risk "
+    "that Hermes cannot rebut with facts, lean REJECT. Internally arbitrate by "
+    "identifying the strongest Hermes point, strongest Nemesis point, and any "
+    "unresolved critical uncertainty before deciding. Follow with exactly one "
+    "sentence explaining your decision. Be impartial."
 )
 
 
@@ -242,10 +254,14 @@ def build_verdict_messages(
         + structured_dump
         + "\n\nReply with EXACTLY this format and nothing else:\n"
         "VERDICT: <APPROVE|REJECT|ESCALATE TO HUMAN>\n"
-        "REASON: <one sentence>\n"
+        "REASON: <one concise sentence summarizing why>\n"
         "Important:\n"
         "- VERDICT must be exactly one of APPROVE, REJECT, ESCALATE TO HUMAN.\n"
-        "- If the debate contains unresolved conflict, missing evidence, or strong opposing arguments, use ESCALATE TO HUMAN.\n"
+        "- Disagreement alone is NOT a reason to escalate.\n"
+        "- Escalate only if there is a MATERIAL unresolved fact (e.g., unverifiable vendor, missing documentation, unexplained anomaly).\n"
+        "- If Hermes provides concrete vendor/transaction evidence and Nemesis only raises generic skepticism, lean APPROVE.\n"
+        "- If Nemesis identifies a specific risk that Hermes cannot rebut with facts, lean REJECT.\n"
+        "- The REASON must reference the specific transaction/vendor or unresolved fact, not just outcome.\n"
         "- Output only these two lines."
     )
 

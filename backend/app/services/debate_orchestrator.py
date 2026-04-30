@@ -549,8 +549,7 @@ def _parse_verdict(raw: str) -> VerdictDecision:
             reason = lines[-1]
 
     if reason:
-        first_sentence = re.split(r"(?<=[.!?])\s+", reason, maxsplit=1)[0]
-        reason = first_sentence.strip().rstrip(".") + "."
+        reason = _clean_verdict_reason(reason)
 
     if _reason_contradicts_outcome(reason, outcome):
         outcome = "ESCALATE TO HUMAN"
@@ -745,9 +744,37 @@ def _is_uninformative_reason(reason: str) -> bool:
     upper = r.upper()
     if upper in {"VERDICT: APPROVE.", "VERDICT: REJECT.", "VERDICT: ESCALATE TO HUMAN."}:
         return True
-    if len(r) < 28:
+    if len(r) < 48:
+        return True
+    if len(re.findall(r"[A-Za-z0-9]+", r)) < 8:
+        return True
+    if r.endswith(":"):
         return True
     return False
+
+
+def _clean_verdict_reason(reason: str) -> str:
+    text = (reason or "").strip()
+    if not text:
+        return ""
+
+    # Remove obvious markdown/code formatting artifacts from model output.
+    text = re.sub(r"^```[a-zA-Z0-9]*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"__([^_]+)__", r"\1", text)
+    text = re.sub(r"^\s*[-*]\s+", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    # Keep a concise but informative explanation: up to two sentences.
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    if sentences:
+        text = " ".join(sentences[:2])
+
+    text = text.strip()
+    if text and text[-1] not in ".!?":
+        text += "."
+    return text
 
 
 def _build_brief_verdict_reason(

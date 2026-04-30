@@ -9,6 +9,7 @@ from app.services.debate_orchestrator import DebateOrchestrator, _OrchestratorCo
 from app.schemas.debate import AgentStructuredMessage
 from app.services.debate_orchestrator import (
     _build_brief_verdict_reason,
+    _clean_verdict_reason,
     _is_repetitive_turn,
     _is_uninformative_reason,
     _parse_verdict,
@@ -77,6 +78,17 @@ def test_parse_verdict_reject_inline():
     assert decision.reason.endswith(".")
 
 
+def test_parse_verdict_strips_markdown_artifacts():
+    decision = _parse_verdict(
+        "VERDICT: ESCALATE TO HUMAN\n"
+        "REASON: - **Unresolved critical uncertainty:** The invoice is missing corroboration."
+    )
+    assert decision.outcome == "ESCALATE TO HUMAN"
+    assert "**" not in decision.reason
+    assert not decision.reason.lstrip().startswith("-")
+    assert "Unresolved critical uncertainty" in decision.reason
+
+
 def test_parse_verdict_contradictory_reason_defaults_to_escalate():
     decision = _parse_verdict(
         "VERDICT: APPROVE\n"
@@ -94,7 +106,17 @@ def test_parse_verdict_missing_verdict_line_defaults_to_escalate():
 def test_is_uninformative_reason_detects_placeholder_text():
     assert _is_uninformative_reason("VERDICT: APPROVE.")
     assert _is_uninformative_reason("")
+    assert _is_uninformative_reason("Unresolved critical uncertainty.")
     assert not _is_uninformative_reason("Evidence is mixed and unresolved so this needs review.")
+
+
+def test_clean_verdict_reason_keeps_two_sentences_max():
+    cleaned = _clean_verdict_reason(
+        "**Reason:** First point is clear. Second point provides context. Third should be dropped."
+    )
+    assert "First point is clear." in cleaned
+    assert "Second point provides context." in cleaned
+    assert "Third should be dropped." not in cleaned
 
 
 def test_is_repetitive_turn_detects_near_duplicate():

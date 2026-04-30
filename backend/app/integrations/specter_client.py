@@ -11,13 +11,18 @@ from app.schemas.debate import SpecterBrief
 logger = logging.getLogger(__name__)
 
 
+# True risk indicators only. "no_recent_funding" was removed because it is
+# normal for large mature/profitable companies and was producing false-positive
+# fraud signals in the debate.
 _RED_FLAG_HIGHLIGHTS = {
-    "no_recent_funding",
     "headcount_decline",
     "negative_news",
     "lawsuit",
     "shutdown",
     "fraud",
+    "scam_reports",
+    "bankruptcy",
+    "regulatory_action",
 }
 
 
@@ -124,8 +129,11 @@ def _format_brief(
     if red_flags:
         parts.append(f"Red flags: {', '.join(red_flags)}")
     elif highlights:
-        sample = ", ".join(str(h) for h in highlights[:3])
-        parts.append(f"Highlights: {sample}")
+        positive = [
+            str(h) for h in highlights if str(h) not in _RED_FLAG_HIGHLIGHTS
+        ][:3]
+        if positive:
+            parts.append(f"Highlights: {', '.join(positive)}")
 
     summary = ". ".join(parts)
 
@@ -145,22 +153,52 @@ def _format_brief(
 def _derive_legitimacy_score(src: Dict[str, Any]) -> Optional[float]:
     """Best-effort numeric legitimacy score in 0..1 range.
 
-    Specter does not publish a single legitimacy field, so we approximate
-    using the company status, founded year, and domain presence.
+    Specter does not publish a single legitimacy field, so we approximate using
+    multiple positive signals (presence of domain/description/HQ, mature
+    founding year, larger headcount, low/established Specter rank) and
+    explicit negative signals (closed status, severe red-flag highlights).
     """
-    score = 0.5
+    score = 0.55
     if src.get("domain"):
-        score += 0.15
+        score += 0.1
+    if src.get("description") or src.get("tagline"):
+        score += 0.05
+    if src.get("hq"):
+        score += 0.05
     status = (src.get("status") or "").lower()
-    if status in {"active", "operating"}:
-        score += 0.15
-    elif status in {"closed", "shutdown", "inactive"}:
-        score -= 0.3
+    if status in {"active", "operating", "operational"}:
+        score += 0.1
+    elif status in {"closed", "shutdown", "inactive", "dissolved", "defunct"}:
+        score -= 0.4
     fy = src.get("founded_year")
     if isinstance(fy, (int, float)) and fy > 0:
-        if fy <= 2015:
+        if fy <= 2010:
             score += 0.15
+        elif fy <= 2015:
+            score += 0.1
         elif fy <= 2020:
             score += 0.05
+    rank = src.get("rank") or src.get("specter_rank")
+    if isinstance(rank, (int, float)) and rank > 0:
+        if rank <= 5_000:
+            score += 0.15
+        elif rank <= 50_000:
+            score += 0.08
+        elif rank <= 200_000:
+            score += 0.04
+    headcount = (
+        src.get("headcount")
+        or src.get("employees")
+        or src.get("employee_count")
+    )
+    if isinstance(headcount, (int, float)) and headcount > 0:
+        if headcount >= 1_000:
+            score += 0.1
+        elif headcount >= 100:
+            score += 0.05
+    highlights = src.get("highlights") or []
+    if isinstance(highlights, list):
+        if any(str(h) in _RED_FLAG_HIGHLIGHTS for h in highlights):
+            score -= 0.25
     score = max(0.0, min(1.0, score))
     return round(score, 2)
