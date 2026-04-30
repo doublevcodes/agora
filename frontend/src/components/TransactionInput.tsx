@@ -23,17 +23,28 @@ const DEMOS: Array<{ key: string; label: string; value: string }> = [
 
 interface Props {
   disabled?: boolean;
-  onSubmit: (raw: string) => void;
+  onSubmit: (raw: string, escalationEmail?: string) => void;
   onReset: () => void;
 }
 
 export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
   const [value, setValue] = useState("");
+  const [escalationEmail, setEscalationEmail] = useState(
+    (import.meta.env.VITE_ESCALATION_EMAIL as string | undefined) ?? ""
+  );
+  const trimmedEmail = escalationEmail.trim();
+  const emailIsValid =
+    trimmedEmail.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const emailError =
+    trimmedEmail.length > 0 && !emailIsValid
+      ? "Enter a valid email address (e.g. ops@example.com)."
+      : null;
 
   const handleSubmit = () => {
     const trimmed = value.trim();
-    if (!trimmed) return;
-    onSubmit(trimmed);
+    if (!trimmed || !emailIsValid) return;
+    const targetEmail = trimmedEmail;
+    onSubmit(trimmed, targetEmail || undefined);
   };
 
   return (
@@ -51,6 +62,21 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
         rows={3}
         disabled={disabled}
       />
+      <div className="input-email-row">
+        <label className="input-email-label" htmlFor="escalation-email">
+          Escalation delivery email
+        </label>
+        <input
+          id="escalation-email"
+          className="input-email"
+          type="email"
+          placeholder="ops@example.com"
+          value={escalationEmail}
+          onChange={(e) => setEscalationEmail(e.target.value)}
+          disabled={disabled}
+        />
+        {emailError && <p className="input-email-error">{emailError}</p>}
+      </div>
       <div className="input-actions">
         <div className="demo-group">
           {DEMOS.map((d) => (
@@ -71,6 +97,7 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
             className="reset-btn"
             onClick={() => {
               setValue("");
+              setEscalationEmail("");
               onReset();
             }}
             disabled={disabled}
@@ -81,7 +108,7 @@ export function TransactionInput({ disabled, onSubmit, onReset }: Props) {
             type="button"
             className="submit-btn"
             onClick={handleSubmit}
-            disabled={disabled || !value.trim()}
+            disabled={disabled || !value.trim() || !emailIsValid}
           >
             Run Debate
           </button>

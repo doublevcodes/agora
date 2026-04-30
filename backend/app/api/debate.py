@@ -29,6 +29,7 @@ async def _sse_stream(
         async for envelope in orchestrator.run(
             raw_transaction=payload.raw_transaction,
             max_rounds=payload.max_rounds,
+            escalation_email=payload.escalation_email,
         ):
             if await request.is_disconnected():
                 logger.info("Client disconnected; stopping debate stream early")

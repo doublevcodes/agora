@@ -36,6 +36,16 @@ class Settings(BaseSettings):
         alias="SPECTER_BASE_URL",
     )
     specter_timeout_seconds: float = Field(default=8.0, alias="SPECTER_TIMEOUT_SECONDS")
+    resend_api_key: str = Field(default="", alias="RESEND_API_KEY")
+    resend_base_url: str = Field(
+        default="https://api.resend.com",
+        alias="RESEND_BASE_URL",
+    )
+    resend_from_email: str = Field(
+        default="onboarding@resend.dev",
+        alias="RESEND_FROM_EMAIL",
+    )
+    resend_to_email: str = Field(default="", alias="RESEND_TO_EMAIL")
 
     model_low_risk: str = Field(
         default="openai/gpt-4o-mini",
@@ -71,6 +81,9 @@ class Settings(BaseSettings):
     )
 
     debate_max_rounds: int = Field(default=6, alias="DEBATE_MAX_ROUNDS")
+    structured_retry_attempts: int = Field(
+        default=2, alias="STRUCTURED_RETRY_ATTEMPTS"
+    )
 
     @property
     def cors_origins_list(self) -> List[str]:

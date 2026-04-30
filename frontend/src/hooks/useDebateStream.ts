@@ -161,20 +161,30 @@ export function useDebateStream() {
   );
 
   const startDebate = useCallback(
-    async (rawTransaction: string, maxRounds = 6) => {
+    async (
+      rawTransaction: string,
+      maxRounds = 6,
+      escalationEmail?: string
+    ) => {
       reset();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setState({ ...initialState, status: "starting" });
 
       try {
+        const body: Record<string, unknown> = {
+          raw_transaction: rawTransaction,
+          max_rounds: maxRounds,
+        };
+        const cleanedEscalationEmail = (escalationEmail ?? "").trim();
+        if (cleanedEscalationEmail) {
+          body.escalation_email = cleanedEscalationEmail;
+        }
+
         const resp = await fetch(`${API_URL}/debate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            raw_transaction: rawTransaction,
-            max_rounds: maxRounds,
-          }),
+          body: JSON.stringify(body),
           signal: ctrl.signal,
         });
 

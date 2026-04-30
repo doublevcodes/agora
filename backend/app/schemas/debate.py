@@ -22,6 +22,7 @@ SseEventType = Literal[
 class DebateRequest(BaseModel):
     raw_transaction: str = Field(min_length=1)
     max_rounds: int = Field(default=6, ge=1, le=6)
+    escalation_email: Optional[str] = None
 
 
 class ParsedTransaction(BaseModel):

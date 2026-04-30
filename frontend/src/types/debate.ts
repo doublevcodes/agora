@@ -62,4 +62,5 @@ export interface SseEnvelope<T = Record<string, unknown>> {
 export interface DebateRequest {
   raw_transaction: string;
   max_rounds?: number;
+  escalation_email?: string;
 }

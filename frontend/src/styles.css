@@ -111,6 +111,40 @@ input {
   outline-offset: 2px;
 }
 
+.input-email-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-email-label {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.input-email {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.input-email:focus {
+  outline: 2px solid var(--hermes);
+  outline-offset: 2px;
+}
+
+.input-email-error {
+  margin: 0;
+  color: #f0746a;
+  font-size: 12px;
+}
+
 .input-actions {
   display: flex;
   flex-wrap: wrap;

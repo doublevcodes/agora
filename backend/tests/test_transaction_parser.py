@@ -30,8 +30,10 @@ def test_parses_ambiguous_line():
     )
     assert tx.amount == 8500.00
     assert tx.currency == "GBP"
-    assert "BRIEFCASE TECHNOLOGIES" in tx.vendor
+    assert tx.vendor == "BRIEFCASE TECHNOLOGIES"
     assert tx.reference == "INV-Q1-LICENSE"
+    assert tx.notes is not None
+    assert tx.notes.startswith("Q1 ")
 
 
 def test_handles_missing_currency():

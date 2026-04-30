@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from app.schemas.debate import (
     AgentRole,
@@ -20,7 +20,10 @@ HERMES_SYSTEM = (
     "3-4 sentences maximum. You are in a live debate with Nemesis, who argues "
     "against payment. Respond directly to their points. You have been given a "
     "Specter intelligence brief on the vendor — use it to ground your arguments "
-    "in real data."
+    "in real data. For each turn, make your reasoning explicit: (1) claim, "
+    "(2) strongest evidence, (3) rebuttal to Nemesis, (4) unresolved risk check. "
+    "Avoid generic policy language; tie every major point to transaction, "
+    "Specter, or opponent statements."
 )
 
 NEMESIS_SYSTEM = (
@@ -32,7 +35,11 @@ NEMESIS_SYSTEM = (
     "rejection. Keep responses to 3-4 sentences maximum. You are in a live "
     "debate with Hermes, who argues for payment. Respond directly to their "
     "points. You have been given a Specter intelligence brief on the vendor — "
-    "if the vendor is unknown or has red flags, lead with this."
+    "if the vendor is unknown or has red flags, lead with this. For each turn, "
+    "make your reasoning explicit: (1) claim, (2) strongest evidence, (3) "
+    "rebuttal to Hermes, (4) unresolved risk check. Avoid generic policy "
+    "language; tie every major point to transaction, Specter, or opponent "
+    "statements."
 )
 
 VERDICT_SYSTEM = (
@@ -40,8 +47,12 @@ VERDICT_SYSTEM = (
     "between Hermes (payment advocate) and Nemesis (payment prosecutor), along "
     "with a Specter intelligence brief on the vendor. Based on the quality of "
     "their arguments, the transaction details, and the Specter data, deliver a "
-    "verdict of APPROVE, REJECT, or ESCALATE TO HUMAN. Follow with exactly "
-    "one sentence explaining your decision. Be impartial."
+    "verdict of APPROVE, REJECT, or ESCALATE TO HUMAN. If evidence remains "
+    "materially conflicting or unresolved after debate, prefer ESCALATE TO HUMAN "
+    "rather than APPROVE. Internally arbitrate by identifying the strongest "
+    "Hermes point, strongest Nemesis point, and unresolved critical uncertainty "
+    "before deciding. Follow with exactly one sentence explaining your decision. "
+    "Be impartial."
 )
 
 
@@ -63,6 +74,8 @@ Rules:
 - confidence is a float between 0.0 and 1.0.
 - risk_tags must be a JSON array of short snake_case strings (use [] if none).
 - text must be 3-4 sentences and reflect the same stance.
+- include an unresolved risk check inside text and/or evidence.
+- avoid repeating prior wording; add at least one new concrete point each turn.
 - Output ONLY the JSON object. Do not wrap it in code fences.
 """.strip()
 
@@ -71,6 +84,20 @@ _REPAIR_INSTRUCTION = (
     "Your previous response was not valid JSON matching the required schema. "
     "Reply again with a single valid JSON object only, no markdown, no commentary."
 )
+_REPAIR_INSTRUCTION_COMPACT = (
+    "Return ONLY valid JSON with keys: stance, claim, evidence, counterpoint, "
+    "risk_tags, confidence, text. No markdown, no extra keys."
+)
+
+_DEBATER_MAX_TURN_CHARS = 380
+_DEBATER_MAX_MEMORY_ITEMS = 4
+
+
+def _trim(text: str, max_chars: int) -> str:
+    t = text.strip()
+    if len(t) <= max_chars:
+        return t
+    return t[: max_chars - 3].rstrip() + "..."
 
 
 def _format_transaction(tx: ParsedTransaction) -> str:
@@ -103,18 +130,27 @@ def build_agent_messages(
     brief: SpecterBrief,
     transcript: List[AgentStructuredMessage],
     current_round: int,
+    memory: Optional[Dict[str, Any]] = None,
+    history_turn_limit: int = 2,
 ) -> List[dict]:
     system = HERMES_SYSTEM if role == "hermes" else NEMESIS_SYSTEM
     context = build_context_block(tx, brief)
 
+    recent = transcript[-history_turn_limit:] if history_turn_limit > 0 else []
     debate_history = []
-    for msg in transcript:
+    for msg in recent:
         speaker = "Hermes" if msg.role == "hermes" else "Nemesis"
-        debate_history.append(f"[Round {msg.round}] {speaker}: {msg.text}")
+        debate_history.append(
+            f"[Round {msg.round}] {speaker} "
+            f"(stance={msg.stance}, confidence={msg.confidence:.2f}, "
+            f"risk_tags={msg.risk_tags}): {_trim(msg.text, _DEBATER_MAX_TURN_CHARS)}"
+        )
     history_block = "\n".join(debate_history) if debate_history else "(no prior turns)"
+    memory_block = _format_memory(memory)
 
     user_content = (
         f"{context}\n\n"
+        f"ROLLING MEMORY STATE:\n{memory_block}\n\n"
         f"DEBATE SO FAR:\n{history_block}\n\n"
         f"It is now Round {current_round}. You are "
         f"{'Hermes' if role == 'hermes' else 'Nemesis'}.\n\n"
@@ -134,10 +170,46 @@ def build_repair_messages(
     transcript: List[AgentStructuredMessage],
     current_round: int,
     bad_response: str,
+    memory: Optional[Dict[str, Any]] = None,
+    repair_round: int = 1,
 ) -> List[dict]:
-    base = build_agent_messages(role, tx, brief, transcript, current_round)
+    base = build_agent_messages(
+        role, tx, brief, transcript, current_round, memory=memory
+    )
     base.append({"role": "assistant", "content": bad_response})
-    base.append({"role": "user", "content": _REPAIR_INSTRUCTION})
+    repair_instruction = (
+        _REPAIR_INSTRUCTION if repair_round <= 1 else _REPAIR_INSTRUCTION_COMPACT
+    )
+    base.append({"role": "user", "content": repair_instruction})
+    return base
+
+
+def build_novelty_retry_messages(
+    role: AgentRole,
+    tx: ParsedTransaction,
+    brief: SpecterBrief,
+    transcript: List[AgentStructuredMessage],
+    current_round: int,
+    bad_response: str,
+    previous_turn_text: str,
+    memory: Optional[Dict[str, Any]] = None,
+) -> List[dict]:
+    base = build_agent_messages(
+        role, tx, brief, transcript, current_round, memory=memory
+    )
+    base.append({"role": "assistant", "content": bad_response})
+    base.append(
+        {
+            "role": "user",
+            "content": (
+                "Your previous answer repeats prior arguments too closely. "
+                "Reply again with VALID JSON only, but introduce at least one "
+                "materially new point not present in this prior turn:\n"
+                f"{_trim(previous_turn_text, 420)}\n"
+                "Keep stance if needed, but add fresh evidence/counterpoint."
+            ),
+        }
+    )
     return base
 
 
@@ -145,6 +217,7 @@ def build_verdict_messages(
     tx: ParsedTransaction,
     brief: SpecterBrief,
     transcript: List[AgentStructuredMessage],
+    memory: Optional[Dict[str, Any]] = None,
 ) -> List[dict]:
     context = build_context_block(tx, brief)
 
@@ -162,16 +235,55 @@ def build_verdict_messages(
 
     user_content = (
         f"{context}\n\n"
+        f"FINAL ROLLING MEMORY STATE:\n{_format_memory(memory)}\n\n"
         "FULL DEBATE TRANSCRIPT (in order):\n"
         + "\n".join(transcript_lines)
         + "\n\nSTRUCTURED EVIDENCE PER TURN:\n"
         + structured_dump
         + "\n\nReply with EXACTLY this format and nothing else:\n"
         "VERDICT: <APPROVE|REJECT|ESCALATE TO HUMAN>\n"
-        "REASON: <one sentence>"
+        "REASON: <one sentence>\n"
+        "Important:\n"
+        "- VERDICT must be exactly one of APPROVE, REJECT, ESCALATE TO HUMAN.\n"
+        "- If the debate contains unresolved conflict, missing evidence, or strong opposing arguments, use ESCALATE TO HUMAN.\n"
+        "- Output only these two lines."
     )
 
     return [
         {"role": "system", "content": VERDICT_SYSTEM},
         {"role": "user", "content": user_content},
     ]
+
+
+def _format_memory(memory: Optional[Dict[str, Any]]) -> str:
+    if not memory:
+        return "(memory empty)"
+    agreed = _format_memory_list(memory.get("agreed_facts", []))
+    disputed = _format_memory_list(memory.get("disputed_points", []))
+    unresolved = _format_memory_list(memory.get("unresolved_checks", []))
+    summary = _trim(str(memory.get("current_risk_summary", "(none)")), 220)
+    recent_claims = _format_recent_claims(memory.get("recent_claims", {}))
+    return (
+        f"- agreed_facts: {agreed}\n"
+        f"- disputed_points: {disputed}\n"
+        f"- unresolved_checks: {unresolved}\n"
+        f"- current_risk_summary: {summary}\n"
+        f"- recent_claims: {recent_claims}"
+    )
+
+
+def _format_memory_list(items: Any) -> str:
+    if not isinstance(items, list) or not items:
+        return "(none)"
+    trimmed = [_trim(str(i), 120) for i in items[:_DEBATER_MAX_MEMORY_ITEMS]]
+    return "; ".join(trimmed)
+
+
+def _format_recent_claims(value: Any) -> str:
+    if not isinstance(value, dict):
+        return "(none)"
+    hermes = value.get("hermes", [])
+    nemesis = value.get("nemesis", [])
+    h = _format_memory_list(hermes)
+    n = _format_memory_list(nemesis)
+    return f"hermes=[{h}] nemesis=[{n}]"

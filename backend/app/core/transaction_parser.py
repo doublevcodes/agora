@@ -17,6 +17,7 @@ _REF_RE = re.compile(r"REF[:\s#-]*([A-Z0-9][A-Z0-9\-_/]*)", re.IGNORECASE)
 _CURRENCY_SYMBOL_MAP = {"$": "USD", "£": "GBP", "€": "EUR"}
 
 _NOISE_TOKENS = {"REF", "REFERENCE", "INV", "INVOICE", "PAYMENT", "PAYEE"}
+_QUARTER_TOKEN_RE = re.compile(r"^Q[1-4](?:[-_/][A-Z0-9]+)?$", re.IGNORECASE)
 
 
 def _clean_vendor(text: str) -> str:
@@ -38,6 +39,53 @@ def _normalize_amount(raw: str) -> Optional[float]:
         return float(cleaned)
     except ValueError:
         return None
+
+
+def _split_vendor_and_notes(vendor_candidate: str) -> tuple[str, Optional[str]]:
+    """Split cleaned text into vendor + optional notes.
+
+    Heuristics:
+    - vendor is usually an uppercase company span
+    - quarter/version tokens such as Q1/Q2 often start notes
+    - once narrative lowercase text starts, remaining text is treated as notes
+    """
+    tokens = vendor_candidate.split()
+    if not tokens:
+        return "UNKNOWN VENDOR", None
+
+    vendor_tokens: list[str] = []
+    note_tokens: list[str] = []
+
+    for idx, tok in enumerate(tokens):
+        tok_is_quarter = bool(_QUARTER_TOKEN_RE.match(tok))
+        tok_is_upper = tok.isupper() and any(ch.isalpha() for ch in tok)
+        tok_has_lower = any(ch.islower() for ch in tok)
+
+        # Treat quarter/version marker as note boundary once a plausible vendor exists.
+        if tok_is_quarter and len(vendor_tokens) >= 2:
+            note_tokens = tokens[idx:]
+            break
+
+        # Lowercase narrative token usually starts memo/description text.
+        if tok_has_lower and len(vendor_tokens) >= 1:
+            note_tokens = tokens[idx:]
+            break
+
+        if tok_is_upper or not vendor_tokens:
+            vendor_tokens.append(tok)
+            continue
+
+        # Fallback boundary for non-uppercase token after vendor span.
+        note_tokens = tokens[idx:]
+        break
+
+    if not vendor_tokens:
+        vendor_tokens = tokens[:1]
+        note_tokens = tokens[1:]
+
+    vendor = " ".join(vendor_tokens).strip() or "UNKNOWN VENDOR"
+    notes = " ".join(note_tokens).strip() or None
+    return vendor, notes
 
 
 def parse_transaction(raw_text: str) -> ParsedTransaction:
@@ -90,26 +138,7 @@ def parse_transaction(raw_text: str) -> ParsedTransaction:
     vendor_candidate = _clean_vendor(working)
     notes: Optional[str] = None
     if vendor_candidate:
-        parts = [p for p in re.split(r"\s{2,}|\s-\s", vendor_candidate) if p.strip()]
-        if len(parts) > 1:
-            vendor = parts[0].strip()
-            notes = " ".join(parts[1:]).strip() or None
-        else:
-            tokens = vendor_candidate.split()
-            cap_tokens: list[str] = []
-            tail_tokens: list[str] = []
-            seen_lower = False
-            for tok in tokens:
-                if not seen_lower and (tok.isupper() or tok[:1].isupper() and tok.upper() == tok):
-                    cap_tokens.append(tok)
-                else:
-                    seen_lower = True
-                    tail_tokens.append(tok)
-            if cap_tokens and tail_tokens:
-                vendor = " ".join(cap_tokens).strip()
-                notes = " ".join(tail_tokens).strip() or None
-            else:
-                vendor = vendor_candidate
+        vendor, notes = _split_vendor_and_notes(vendor_candidate)
     else:
         vendor = "UNKNOWN VENDOR"
 

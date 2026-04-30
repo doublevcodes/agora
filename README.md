@@ -72,7 +72,8 @@ All keys load from environment variables — none are hardcoded. See
 ```json
 {
   "raw_transaction": "04/30 AMAZON WEB SERVICES 340.00 GBP REF:INV-AWS-9923 ...",
-  "max_rounds": 6
+  "max_rounds": 6,
+  "escalation_email": "ops@example.com"
 }
 ```
 

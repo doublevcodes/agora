@@ -25,7 +25,7 @@ export function App() {
 
       <TransactionInput
         disabled={isBusy}
-        onSubmit={(raw) => startDebate(raw)}
+        onSubmit={(raw, escalationEmail) => startDebate(raw, 6, escalationEmail)}
         onReset={reset}
       />
 
