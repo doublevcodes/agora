@@ -63,6 +63,14 @@ async def test_send_escalation_email_posts_when_configured() -> None:
         )
 
     mock_http_client.post.assert_awaited_once()
+    _, kwargs = mock_http_client.post.await_args
+    payload = kwargs["json"]
+    assert payload["subject"] == "[Agora] Human escalation required (trace-12)"
+    assert "Escalation packet:" in payload["text"]
+    assert '"vendor": "ACME"' in payload["text"]
+    assert "<h2" in payload["html"]
+    assert "Human escalation required" in payload["html"]
+    assert "&quot;vendor&quot;: &quot;ACME&quot;" in payload["html"]
 
 
 @pytest.mark.asyncio

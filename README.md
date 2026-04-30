@@ -95,7 +95,7 @@ Every event is wrapped in an `SseEnvelope` with `event_id`, `trace_id`,
 Three preload buttons on the UI map to:
 
 1. **Clean** — `04/30 AMAZON WEB SERVICES 340.00 GBP REF:INV-AWS-9923 Monthly cloud infrastructure`
-2. **Fraud** — `04/30 NEXUS CAPITAL SOLUTIONS LTD 47000.00 GBP REF:INV-2281 Consultancy services`
+2. **Fraud** — `04/30 AMAZ0N WEB SERVICES 47000.00 GBP REF:INV-AWS-2281 Urgent infrastructure payment`
 3. **Ambiguous** — `04/30 BRIEFCASE TECHNOLOGIES 8500.00 GBP REF:INV-Q1-LICENSE Q1 platform licensing end of quarter reconciliation`
 
 ## Architecture summary

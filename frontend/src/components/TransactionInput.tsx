@@ -9,9 +9,9 @@ const DEMOS: Array<{ key: string; label: string; value: string }> = [
   },
   {
     key: "fraud",
-    label: "Fraud — Nexus Capital",
+    label: "Fraud — AWS spoof",
     value:
-      "04/30 NEXUS CAPITAL SOLUTIONS LTD 47000.00 GBP REF:INV-2281 Consultancy services",
+      "04/30 AMAZ0N WEB SERVICES 47000.00 GBP REF:INV-AWS-2281 Urgent infrastructure payment",
   },
   {
     key: "ambiguous",

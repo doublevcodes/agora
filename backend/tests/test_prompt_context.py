@@ -83,3 +83,5 @@ def test_verdict_context_contains_full_transcript_and_memory():
     assert "[Round 1]" in user_content
     assert "[Round 4]" in user_content
     assert "STRUCTURED EVIDENCE PER TURN" in user_content
+    assert "prefer REJECT over ESCALATE" in user_content
+    assert "impersonation/typosquatting" in msgs[0]["content"]

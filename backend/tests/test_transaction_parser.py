@@ -16,12 +16,12 @@ def test_parses_clean_aws_line():
 
 def test_parses_fraud_line():
     tx = parse_transaction(
-        "04/30 NEXUS CAPITAL SOLUTIONS LTD 47000.00 GBP REF:INV-2281 Consultancy services"
+        "04/30 AMAZ0N WEB SERVICES 47000.00 GBP REF:INV-AWS-2281 Urgent infrastructure payment"
     )
     assert tx.amount == 47000.00
     assert tx.currency == "GBP"
-    assert "NEXUS CAPITAL SOLUTIONS" in tx.vendor
-    assert tx.reference == "INV-2281"
+    assert "AMAZ0N WEB SERVICES" in tx.vendor
+    assert tx.reference == "INV-AWS-2281"
 
 
 def test_parses_ambiguous_line():

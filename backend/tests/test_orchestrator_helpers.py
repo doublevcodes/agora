@@ -98,6 +98,33 @@ def test_parse_verdict_contradictory_reason_defaults_to_escalate():
     assert "inconsistent" in decision.reason.lower()
 
 
+def test_parse_verdict_approve_with_negated_unresolved_signal_not_contradictory():
+    decision = _parse_verdict(
+        "VERDICT: APPROVE\n"
+        "REASON: Evidence supports payment and there are no unresolved material risks."
+    )
+    assert decision.outcome == "APPROVE"
+    assert "no unresolved material risks" in decision.reason.lower()
+
+
+def test_parse_verdict_approve_with_without_unresolved_phrase_not_contradictory():
+    decision = _parse_verdict(
+        "VERDICT: APPROVE\n"
+        "REASON: The transaction is justified without unresolved questions about this invoice."
+    )
+    assert decision.outcome == "APPROVE"
+    assert "without unresolved questions" in decision.reason.lower()
+
+
+def test_parse_verdict_reject_with_cannot_approve_is_not_contradictory():
+    decision = _parse_verdict(
+        "VERDICT: REJECT\n"
+        "REASON: We cannot approve because the vendor identity is unresolved and the reference is anomalous."
+    )
+    assert decision.outcome == "REJECT"
+    assert "cannot approve" in decision.reason.lower()
+
+
 def test_parse_verdict_missing_verdict_line_defaults_to_escalate():
     decision = _parse_verdict("REASON: Data is conflicting so this needs human review.")
     assert decision.outcome == "ESCALATE TO HUMAN"

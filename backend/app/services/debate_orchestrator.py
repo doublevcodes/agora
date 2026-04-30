@@ -577,6 +577,12 @@ def _reason_contradicts_outcome(
     if not reason or outcome is None:
         return False
     r = reason.lower()
+    has_negated_risk_signal = bool(
+        re.search(
+            r"\b(without|no|not|lacks?)\s+(material\s+)?(unresolved|insufficient|high\s+risk|fraud)\b",
+            r,
+        )
+    )
     reject_markers = (
         "cannot approve",
         "can't approve",
@@ -587,15 +593,30 @@ def _reason_contradicts_outcome(
         "high risk",
     )
     approve_markers = (
-        "approve",
         "low risk",
         "verified",
         "sufficient evidence",
     )
-    if outcome == "APPROVE" and any(m in r for m in reject_markers):
+    if (
+        outcome == "APPROVE"
+        and any(m in r for m in reject_markers)
+        and not has_negated_risk_signal
+    ):
         return True
-    if outcome == "REJECT" and any(m in r for m in approve_markers):
-        return True
+    if outcome == "REJECT":
+        # "cannot approve"/"can't approve"/"not approved" should reinforce REJECT,
+        # not be treated as contradiction.
+        negated_approve = re.search(
+            r"\b(cannot|can't|can not|not|no)\s+approv(?:e|ed|al)\b", r
+        )
+        has_positive_approve_signal = (
+            re.search(r"\bapprov(?:e|ed|al)\b", r) is not None and not negated_approve
+        ) or any(m in r for m in approve_markers)
+        if has_positive_approve_signal:
+            return True
+    if outcome == "ESCALATE TO HUMAN":
+        # Escalation can legitimately mention both approval and rejection factors.
+        return False
     return False
 
 
